@@ -1,182 +1,156 @@
-# Importing necessary libraries
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.preprocessing import MinMaxScaler
+# -------------------------------
+# Movie Data Preprocessing & EDA
+# -------------------------------
 
-# Configure plot style and size
+# Import necessary libraries
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+import os
+
+# Configure visual settings
 sns.set(style="whitegrid")
 plt.rcParams['figure.figsize'] = (10, 6)
 
-# Load the dataset
-df = pd.read_csv('mymoviedb.csv', lineterminator='\n')
-print("Initial Dataset Sample:")
+# Create output folder for visualizations
+os.makedirs('visuals_output', exist_ok=True)
+
+# -------------------------------
+# 1. Load Dataset
+# -------------------------------
+df = pd.read_csv('data/mymoviedb.csv', lineterminator='\n')
+print("✅ Dataset Loaded Successfully\n")
 print(df.head())
 
 # -------------------------------
-# 1. Data Cleaning & Handling Missing Values
+# 2. Data Cleaning
 # -------------------------------
 
 # Check for missing values
-print("\nMissing Values in Each Column:\n", df.isnull().sum())
+print("\n📌 Missing Values Check:")
+print(df.isnull().sum())
 
-# Convert 'Release_Date' to datetime, coerce errors to NaT
+# Convert 'Release_Date' to datetime
 df['Release_Date'] = pd.to_datetime(df['Release_Date'], errors='coerce')
 
-# Fill missing text columns with 'Not Available' where applicable
+# Fill missing text fields with placeholders
 df['Overview'] = df['Overview'].fillna('Not Available')
 df['Poster_Url'] = df['Poster_Url'].fillna('Not Available')
 
-# Drop rows with missing release dates (if any)
-missing_dates = df['Release_Date'].isnull().sum()
-print(f"\nNumber of rows with missing Release_Date: {missing_dates}")
+# Drop rows where Release_Date could not be parsed
 df.dropna(subset=['Release_Date'], inplace=True)
 
-print(f"Dataset shape after cleaning missing Release_Date: {df.shape}")
-
 # -------------------------------
-# 2. Feature Engineering & Selection
+# 3. Feature Engineering
 # -------------------------------
 
-# Extract Year and Month from Release_Date
+# Extract year and month from release date
 df['Year'] = df['Release_Date'].dt.year
 df['Month'] = df['Release_Date'].dt.month
 
-# Count number of genres per movie (split by comma)
+# Calculate number of genres for each movie
 df['Genre_Count'] = df['Genre'].apply(lambda x: len(str(x).split(',')))
 
-# Normalize 'Popularity' to 0-1 scale using MinMaxScaler
+# Normalize popularity using MinMaxScaler
 scaler = MinMaxScaler()
 df['Popularity_Norm'] = scaler.fit_transform(df[['Popularity']])
 
-print("\nFeature Engineering completed: Added Year, Month, Genre_Count, and normalized Popularity.")
-
 # -------------------------------
-# 3. Data Integrity & Consistency Checks
+# 4. Data Integrity & Consistency
 # -------------------------------
 
-# Check for duplicate rows
-duplicate_count = df.duplicated().sum()
-print(f"\nNumber of duplicate rows found: {duplicate_count}")
+# Remove duplicate rows if any
+duplicates = df.duplicated().sum()
+print(f"\n🧹 Duplicate Rows Removed: {duplicates}")
+df.drop_duplicates(inplace=True)
 
-# Drop duplicates if any
-if duplicate_count > 0:
-    df = df.drop_duplicates()
-    print(f"Dataset shape after removing duplicates: {df.shape}")
-
-# Ensure correct data types
+# Fix data types
 df['Vote_Count'] = df['Vote_Count'].astype(int)
 df['Vote_Average'] = df['Vote_Average'].astype(float)
 
-print("\nData types after conversion:")
-print(df.dtypes[['Vote_Count', 'Vote_Average']])
-
 # -------------------------------
-# 4. Summary Statistics & Insights
+# 5. Summary Statistics & Insights
 # -------------------------------
 
-print("\nSummary Statistics for Numeric Columns:\n", df.describe())
+print("\n📊 Summary Statistics:\n")
+print(df.describe())
 
-# Additional stats for engineered features
-print("\nSummary Statistics for Year, Month, Genre_Count:\n", df[['Year', 'Month', 'Genre_Count']].describe())
-
-# Most voted movie
+# Display the most voted movie
 most_voted = df[df['Vote_Count'] == df['Vote_Count'].max()]
-print("\nMost Voted Movie:")
+print("\n🏆 Most Voted Movie:")
 print(most_voted[['Title', 'Vote_Count', 'Vote_Average']])
-print(f"'{most_voted.iloc[0]['Title']}' has the highest number of votes ({most_voted.iloc[0]['Vote_Count']}) with an average rating of {most_voted.iloc[0]['Vote_Average']}.")
 
 # -------------------------------
-# 5. Outlier Detection & Handling (Popularity)
+# 6. Outlier Handling
 # -------------------------------
 
-# Calculate IQR for popularity
+# Remove outliers in 'Popularity' using IQR method
 Q1 = df['Popularity'].quantile(0.25)
 Q3 = df['Popularity'].quantile(0.75)
 IQR = Q3 - Q1
+df_no_outliers = df[~((df['Popularity'] < (Q1 - 1.5 * IQR)) | (df['Popularity'] > (Q3 + 1.5 * IQR)))]
 
-# Define outlier bounds
-lower_bound = Q1 - 1.5 * IQR
-upper_bound = Q3 + 1.5 * IQR
-
-# Filter out outliers
-df_no_outliers = df[(df['Popularity'] >= lower_bound) & (df['Popularity'] <= upper_bound)]
-
-print(f"\nOutlier detection using IQR on Popularity:")
-print(f"Lower bound: {lower_bound:.2f}, Upper bound: {upper_bound:.2f}")
-print(f"Number of outliers removed: {df.shape[0] - df_no_outliers.shape[0]}")
-
-# Use df_no_outliers for visualization where relevant
+outliers_removed = df.shape[0] - df_no_outliers.shape[0]
+print(f"\n⚠️ Outliers Removed (Popularity): {outliers_removed}")
 
 # -------------------------------
-# 6. Initial Visual Representations of Key Findings
+# 7. Data Visualization
 # -------------------------------
 
-import os
-output_dir = 'outputs'
-os.makedirs(output_dir, exist_ok=True)
-
-# Popularity vs Vote Count Scatter Plot
+# Scatter plot: Popularity vs Vote Count
 plt.figure()
-sns.scatterplot(data=df_no_outliers, x='Popularity', y='Vote_Count', hue='Genre_Count', palette='viridis', legend='full')
-plt.title("Popularity vs Vote Count (Colored by Genre Count)")
+sns.scatterplot(data=df, x='Popularity', y='Vote_Count', hue='Title', legend=False)
+plt.title("Popularity vs Vote Count")
 plt.xlabel("Popularity")
 plt.ylabel("Vote Count")
-plt.legend(title='Genre Count', bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.tight_layout()
-plt.savefig(f'{output_dir}/popularity_vs_vote_count.png')
-plt.show()
+plt.savefig('visuals_output/popularity_vs_votes.png')
+plt.close()
 
-# Distribution of Number of Genres per Movie
+# Bar plot: Genre Count Distribution
 plt.figure()
 sns.countplot(data=df, x='Genre_Count')
-plt.title("Distribution of Number of Genres per Movie")
+plt.title("Number of Genres per Movie")
 plt.xlabel("Genre Count")
 plt.ylabel("Number of Movies")
-plt.savefig(f'{output_dir}/genre_count_distribution.png')
-plt.show()
+plt.tight_layout()
+plt.savefig('visuals_output/genre_count_distribution.png')
+plt.close()
 
-# Vote Average Distribution Histogram
+# Histogram: Vote Average Distribution
 plt.figure()
-sns.histplot(df['Vote_Average'], bins=10, kde=True, color='skyblue')
-plt.title("Distribution of Vote Average")
+sns.histplot(df['Vote_Average'], bins=10, kde=True)
+plt.title("Vote Average Distribution")
 plt.xlabel("Vote Average")
 plt.ylabel("Frequency")
-plt.savefig(f'{output_dir}/vote_average_distribution.png')
-plt.show()
+plt.tight_layout()
+plt.savefig('visuals_output/vote_average_distribution.png')
+plt.close()
 
-# Correlation Heatmap for Numeric Features
+# Correlation Heatmap
 plt.figure()
-sns.heatmap(df[['Popularity', 'Vote_Count', 'Vote_Average', 'Genre_Count']].corr(), annot=True, cmap='coolwarm', fmt=".2f")
+sns.heatmap(df[['Popularity', 'Vote_Count', 'Vote_Average', 'Genre_Count']].corr(), annot=True, cmap="coolwarm")
 plt.title("Correlation Heatmap")
-plt.savefig(f'{output_dir}/correlation_heatmap.png')
-plt.show()
+plt.tight_layout()
+plt.savefig('visuals_output/correlation_heatmap.png')
+plt.close()
 
-# Number of Movies Released Each Month
+# Movie releases by Month
 plt.figure()
-sns.countplot(data=df, x='Month', order=sorted(df['Month'].unique()))
-plt.title("Number of Movies Released by Month")
+sns.countplot(data=df, x='Month', order=sorted(df['Month'].dropna().unique()))
+plt.title("Movie Releases by Month")
 plt.xlabel("Month")
 plt.ylabel("Number of Movies")
-plt.savefig(f'{output_dir}/movies_released_per_month.png')
-plt.show()
-
-# Additional: Frequency of Each Genre (Explode genre list)
-all_genres = df['Genre'].str.split(',').explode().str.strip()
-genre_counts = all_genres.value_counts()
-
-plt.figure(figsize=(12,6))
-sns.barplot(x=genre_counts.index, y=genre_counts.values, palette='muted')
-plt.title("Frequency of Each Genre")
-plt.xlabel("Genre")
-plt.ylabel("Number of Movies")
-plt.xticks(rotation=45)
 plt.tight_layout()
-plt.savefig(f'{output_dir}/genre_frequency.png')
-plt.show()
+plt.savefig('visuals_output/monthly_release.png')
+plt.close()
 
+print("\n✅ Visualizations Saved in 'visuals_output/' Folder")
 
-
+# -------------------------------
+# 8. Save Cleaned Dataset
+# -------------------------------
 df.to_csv("data/mymoviedb_cleaned.csv", index=False)
-print("\nCleaned dataset saved as 'data/mymoviedb_cleaned.csv'")
+print("📁 Cleaned dataset saved to 'data/mymoviedb_cleaned.csv'")
