@@ -31,7 +31,7 @@ mymoviedb-analysis/
 How to Run:
 
 1. Clone the repository:
-   git clone https://github.com/yourusername/mymoviedb-analysis.git
+   git clone (https://github.com/adityagopal1807/moviedata_analytics)
    cd mymoviedb-analysis
 
 2. Install dependencies:
