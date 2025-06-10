@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Interactive Bar Chart</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+  <h2 style="text-align:center;">Top 5 Movie Genres by Frequency</h2>
+  <div id="bar-chart" style="width:80%;max-width:800px;margin:auto;"></div>
+
+  <script>
+    // Sample data - top 5 movie genres and their counts
+    const genres = ['Drama', 'Comedy', 'Action', 'Thriller', 'Romance'];
+    const counts = [120, 95, 80, 60, 55];
+
+    const data = [{
+      type: 'bar',
+      x: counts,
+      y: genres,
+      orientation: 'h',
+      marker: {
+        color: 'rgba(222,45,38,0.8)'
+      },
+      text: counts.map(String),
+      textposition: 'auto'
+    }];
+
+    const layout = {
+      margin: { l: 100, r: 30, t: 30, b: 50 },
+      xaxis: { title: 'Number of Movies' },
+      yaxis: { title: 'Genre' },
+      height: 400
+    };
+
+    Plotly.newPlot('bar-chart', data, layout, {responsive: true});
+  </script>
+</body>
+</html>
